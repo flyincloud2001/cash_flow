@@ -84,9 +84,21 @@ label{font-size:.82rem;color:#94a3b8;display:block;margin-top:10px}
       <div class="balance-sub" id="bal-ntd"></div>
     </div>
     <div class="card">
-      <div class="card-title">每日可用預算</div>
+      <div class="card-title">1/15 預計餘額</div>
+      <div class="balance-big" id="final-bal-cad">載入中…</div>
+      <div class="balance-sub" id="final-bal-ntd"></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">每日可用預算（今日）</div>
       <div class="daily-budget" id="daily-budget">計算中…</div>
       <div class="balance-sub" id="days-left"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">每日可用預算（最終）</div>
+      <div class="daily-budget" id="final-daily-budget">計算中…</div>
+      <div class="balance-sub" id="final-days-left"></div>
     </div>
   </div>
   <div class="card">
@@ -354,10 +366,18 @@ function renderToday(){
   document.getElementById('bal-cad').textContent=fmtCAD(bal);
   document.getElementById('bal-ntd').textContent=fmtNTD(cadToNTD(bal));
 
+  const finalBal=balanceUpTo(END_DATE);
+  document.getElementById('final-bal-cad').textContent=fmtCAD(finalBal);
+  document.getElementById('final-bal-ntd').textContent=fmtNTD(cadToNTD(finalBal));
+
   const daysLeft=Math.max(1,daysBetween(t,END_DATE));
   const daily=bal/daysLeft;
   document.getElementById('daily-budget').textContent=fmtBoth(daily);
   document.getElementById('days-left').textContent=`距離 ${END_DATE} 還有 ${daysLeft} 天`;
+
+  const finalDaily=finalBal/daysLeft;
+  document.getElementById('final-daily-budget').textContent=fmtBoth(finalDaily);
+  document.getElementById('final-days-left').textContent=`依 ${END_DATE} 餘額計算`;
 
   const todayItems=itemsOnDate(t);
   const el=document.getElementById('today-items');
