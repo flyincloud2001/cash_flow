@@ -189,7 +189,6 @@ label{font-size:.82rem;color:#94a3b8;display:block;margin-top:10px}
     <div class="btn-row">
       <button class="btn btn-blue" onclick="exportJSON()">匯出 JSON</button>
       <button class="btn btn-green" onclick="document.getElementById('import-file').click()">匯入 JSON</button>
-      <button class="btn btn-red" onclick="resetData()">重置為預設</button>
     </div>
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
     <div style="margin-top:16px;font-size:.82rem;color:#64748b">
@@ -600,12 +599,6 @@ function importJSON(e){
   };
   reader.readAsText(f);
   e.target.value='';
-}
-
-function resetData(){
-  if(!confirm('確定要重置為預設資料？所有自訂項目和實際支出都將清除。')) return;
-  DB=buildDefaultData();save(DB);
-  renderToday();alert('已重置！');
 }
 
 // ── 初始化 ──────────────────────────────────────────────────
