@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>現金流追蹤</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.app{max-width:900px;margin:0 auto;padding:16px}
+h1{text-align:center;font-size:1.4rem;color:#94a3b8;margin-bottom:16px;letter-spacing:.1em}
+.tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+.tab{flex:1;min-width:80px;padding:8px 4px;border:none;border-radius:8px;background:#1e293b;color:#94a3b8;cursor:pointer;font-size:.85rem;transition:all .2s}
+.tab.active{background:#3b82f6;color:#fff;font-weight:600}
+.panel{display:none}.panel.active{display:block}
+.card{background:#1e293b;border-radius:12px;padding:16px;margin-bottom:12px}
+.card-title{font-size:.8rem;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.balance-big{font-size:2rem;font-weight:700;color:#22c55e}
+.balance-sub{font-size:.95rem;color:#94a3b8;margin-top:2px}
+.daily-budget{font-size:1.1rem;color:#f59e0b;font-weight:600}
+.row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #0f172a}
+.row:last-child{border-bottom:none}
+.row-name{font-size:.9rem}
+.row-note{font-size:.75rem;color:#64748b}
+.amt-pos{color:#22c55e;font-weight:600;text-align:right}
+.amt-neg{color:#ef4444;font-weight:600;text-align:right}
+.amt-sub{font-size:.75rem;color:#64748b}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:500px){.grid2{grid-template-columns:1fr}}
+input,select,textarea{width:100%;padding:8px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:.9rem;margin-top:4px}
+input:focus,select:focus{outline:none;border-color:#3b82f6}
+label{font-size:.82rem;color:#94a3b8;display:block;margin-top:10px}
+.btn{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .2s}
+.btn-blue{background:#3b82f6;color:#fff}
+.btn-blue:hover{background:#2563eb}
+.btn-green{background:#22c55e;color:#fff}
+.btn-green:hover{background:#16a34a}
+.btn-red{background:#ef4444;color:#fff}
+.btn-red:hover{background:#dc2626}
+.btn-gray{background:#334155;color:#e2e8f0}
+.btn-gray:hover{background:#475569}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.timeline-item{padding:10px 0;border-bottom:1px solid #1e293b}
+.timeline-date{font-size:.8rem;color:#64748b;font-weight:600}
+.timeline-balance{font-size:.85rem;font-weight:600;margin-top:4px}
+.month-header{background:#1e293b;padding:10px 12px;border-radius:8px;margin:12px 0 4px;font-weight:700;color:#94a3b8}
+.month-summary{display:flex;gap:12px;flex-wrap:wrap;font-size:.82rem;margin-top:4px}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.75rem;margin-right:4px}
+.tag-income{background:#14532d;color:#86efac}
+.tag-expense{background:#450a0a;color:#fca5a5}
+.search-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap}
+.search-row input{flex:1;min-width:140px;margin-top:0}
+.edit-form{background:#0f172a;border-radius:8px;padding:12px;margin-top:8px}
+.item-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid #1e293b}
+.item-row:last-child{border-bottom:none}
+.item-actions{display:flex;gap:4px;flex-shrink:0}
+.btn-sm{padding:3px 8px;font-size:.75rem;border:none;border-radius:5px;cursor:pointer;font-weight:600}
+.badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.72rem;margin-left:4px}
+.badge-today{background:#1d4ed8;color:#bfdbfe}
+.notice{padding:10px 12px;border-radius:8px;font-size:.85rem;margin-bottom:8px}
+.notice-info{background:#1e3a5f;color:#93c5fd;border-left:3px solid #3b82f6}
+.notice-warn{background:#451a03;color:#fed7aa;border-left:3px solid #f97316}
+.divider{height:1px;background:#1e293b;margin:8px 0}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0f172a}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>💰 現金流追蹤</h1>
+<div class="tabs">
+  <button class="tab active" onclick="showPanel('today')">今日</button>
+  <button class="tab" onclick="showPanel('calendar')">日曆查詢</button>
+  <button class="tab" onclick="showPanel('edit')">新增/編輯</button>
+  <button class="tab" onclick="showPanel('overview')">總覽</button>
+  <button class="tab" onclick="showPanel('data')">資料管理</button>
+</div>
+
+<!-- 今日面板 -->
+<div id="panel-today" class="panel active">
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">目前餘額</div>
+      <div class="balance-big" id="bal-cad">載入中…</div>
+      <div class="balance-sub" id="bal-ntd"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">每日可用預算</div>
+      <div class="daily-budget" id="daily-budget">計算中…</div>
+      <div class="balance-sub" id="days-left"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">今日預計項目 (<span id="today-date"></span>)</div>
+    <div id="today-items"><div style="color:#64748b;font-size:.85rem">今天沒有預定收支</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">輸入今日實際支出</div>
+    <div class="grid2">
+      <div>
+        <label>金額</label>
+        <input type="number" id="actual-amount" placeholder="0" step="0.01">
+      </div>
+      <div>
+        <label>貨幣</label>
+        <select id="actual-currency">
+          <option value="NTD">NTD 台幣</option>
+          <option value="CAD">CAD 加幣</option>
+        </select>
+      </div>
+    </div>
+    <label>說明</label>
+    <input type="text" id="actual-desc" placeholder="支出說明（選填）">
+    <div class="btn-row">
+      <button class="btn btn-red" onclick="addActualExpense()">記錄支出</button>
+    </div>
+    <div id="today-actual-list" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- 日曆查詢 -->
+<div id="panel-calendar" class="panel">
+  <div class="card">
+    <div class="search-row">
+      <div style="flex:1">
+        <label style="margin-top:0">查詢日期</label>
+        <input type="date" id="cal-date">
+      </div>
+      <button class="btn btn-blue" onclick="queryDate()">查詢</button>
+    </div>
+    <div id="cal-result"></div>
+  </div>
+</div>
+
+<!-- 新增/編輯 -->
+<div id="panel-edit" class="panel">
+  <div class="card">
+    <div class="card-title">新增收支項目</div>
+    <div class="grid2">
+      <div>
+        <label>日期</label>
+        <input type="date" id="new-date">
+      </div>
+      <div>
+        <label>名稱</label>
+        <input type="text" id="new-name" placeholder="項目名稱">
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label>金額</label>
+        <input type="number" id="new-amount" placeholder="正數=收入，負數=支出" step="0.01">
+      </div>
+      <div>
+        <label>貨幣</label>
+        <select id="new-currency">
+          <option value="CAD">CAD 加幣</option>
+          <option value="NTD">NTD 台幣</option>
+        </select>
+      </div>
+    </div>
+    <label>備註</label>
+    <input type="text" id="new-note" placeholder="備註（選填）">
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="addItem()">新增</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">查詢並編輯項目</div>
+    <div class="search-row">
+      <input type="date" id="edit-search-date" style="flex:1;margin-top:0">
+      <button class="btn btn-blue" onclick="loadEditDate()">載入</button>
+    </div>
+    <div id="edit-items"></div>
+  </div>
+</div>
+
+<!-- 總覽 -->
+<div id="panel-overview" class="panel">
+  <div class="card">
+    <div class="card-title">收支總覽（今天 → 2027-01-15）</div>
+    <div id="overview-content" style="max-height:70vh;overflow-y:auto">載入中…</div>
+  </div>
+</div>
+
+<!-- 資料管理 -->
+<div id="panel-data" class="panel">
+  <div class="card">
+    <div class="card-title">資料管理</div>
+    <div class="btn-row">
+      <button class="btn btn-blue" onclick="exportJSON()">匯出 JSON</button>
+      <button class="btn btn-green" onclick="document.getElementById('import-file').click()">匯入 JSON</button>
+      <button class="btn btn-red" onclick="resetData()">重置為預設</button>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+    <div style="margin-top:16px;font-size:.82rem;color:#64748b">
+      <div>匯率：1 CAD = 21.8 NTD（固定）</div>
+      <div id="data-count" style="margin-top:4px"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const CAD_NTD = 21.8;
+const END_DATE = '2027-01-15';
+const STORAGE_KEY = 'cashflow_v1';
+
+function ntdToCAD(ntd){ return ntd / CAD_NTD; }
+function cadToNTD(cad){ return cad * CAD_NTD; }
+function fmtCAD(v){ return (v>=0?'+':'')+v.toFixed(2)+' CAD'; }
+function fmtNTD(v){ return (v>=0?'+':'')+Math.round(v)+' NTD'; }
+function fmtBoth(cadV){ return fmtCAD(cadV)+' / '+fmtNTD(cadToNTD(cadV)); }
+function today(){ return new Date().toISOString().slice(0,10); }
+
+function addDays(d,n){
+  let dt=new Date(d+'T00:00:00');
+  dt.setDate(dt.getDate()+n);
+  return dt.toISOString().slice(0,10);
+}
+function daysBetween(a,b){
+  return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/(86400000));
+}
+
+// ── 預設資料生成 ──────────────────────────────────────────────
+function buildDefaultData(){
+  const items=[];
+  let id=1;
+  function add(date,name,amtCAD,note,tag){
+    items.push({id:id++,date,name,amtCAD:+amtCAD.toFixed(4),note:note||'',tag:tag||''});
+  }
+
+  // 初始資產
+  add('2026-06-22','IBKR帳戶',3386,'加幣現金','asset');
+  add('2026-06-22','TD銀行現金',226,'$239 - $13手續費','asset');
+  add('2026-06-22','錢包現金',ntdToCAD(1200),'台幣現金','asset');
+
+  // Canada Pro 每月10號
+  ['2026-07-10','2026-08-10','2026-09-10','2026-10-10','2026-11-10','2026-12-10'].forEach(d=>
+    add(d,'Canada Pro',30.99,'每月10號'));
+
+  // 房租
+  add('2026-07-11','房租',ntdToCAD(-4700),'每月11號');
+  add('2026-08-11','房租',ntdToCAD(-4700),'每月11號');
+
+  // 瓦斯費
+  ['2026-07-12','2026-08-12','2026-09-12'].forEach(d=>add(d,'瓦斯費',ntdToCAD(-200),''));
+
+  // 水費
+  add('2026-07-15','水費',ntdToCAD(-150),'');
+  add('2026-09-12','水費',ntdToCAD(-300),'');
+
+  // 電費
+  add('2026-07-15','電費',ntdToCAD(-1000),'');
+  add('2026-09-12','電費',ntdToCAD(-2000),'');
+
+  // Claude訂閱
+  add('2026-07-17','Claude訂閱',-31.64,'每月17號');
+  add('2026-08-17','Claude訂閱',-31.64,'最後一次');
+
+  // 貸款利息 每月25號
+  ['2026-07-25','2026-08-25','2026-09-25','2026-10-25','2026-11-25','2026-12-25'].forEach(d=>
+    add(d,'貸款利息',-100,'每月25號'));
+
+  // 房租押金退回
+  add('2026-09-12','房租押金退回',ntdToCAD(9400),'退租，兩個月押金');
+
+  // 返加機票
+  add('2026-09-30','返加機票',-1200,'9/15入伍，票款9/30扣');
+
+  // 兵役薪水
+  add('2026-10-15','兵役薪水',ntdToCAD(8000),'10月份');
+  add('2026-11-05','兵役薪水',ntdToCAD(6510),'11月份');
+  add('2026-12-05','兵役薪水',ntdToCAD(6510),'12月份');
+  add('2027-01-15','兵役薪水',ntdToCAD(1519),'退伍日1/10，最後薪水');
+
+  // 交通費 每7天
+  const transDates=['2026-06-29','2026-07-06','2026-07-13','2026-07-20','2026-07-27',
+    '2026-08-03','2026-08-10','2026-08-17','2026-08-24','2026-08-31',
+    '2026-09-07','2026-09-14'];
+  transDates.forEach((d,i)=>add(d,'交通費',ntdToCAD(-248),`第${i+1}次`,'transport'));
+
+  // 伙食費 2026-06-22 ~ 2026-09-15 每天
+  let fd=new Date('2026-06-22T00:00:00');
+  const fEnd=new Date('2026-09-15T00:00:00');
+  while(fd<=fEnd){
+    add(fd.toISOString().slice(0,10),'伙食費',ntdToCAD(-300),'','food');
+    fd.setDate(fd.getDate()+1);
+  }
+
+  // 伙食費 假日/週末
+  const foodExtra=[
+    '2026-09-19','2026-09-20',
+    '2026-09-25','2026-09-26','2026-09-27','2026-09-28',
+    '2026-10-03','2026-10-04','2026-10-09','2026-10-10','2026-10-11',
+    '2026-10-17','2026-10-18','2026-10-24','2026-10-25','2026-10-26',
+    '2026-10-31','2026-11-01','2026-11-07','2026-11-08','2026-11-14','2026-11-15',
+    '2026-11-21','2026-11-22','2026-11-28','2026-11-29',
+    '2026-12-05','2026-12-06','2026-12-12','2026-12-13','2026-12-19','2026-12-20',
+    '2026-12-25','2026-12-26','2026-12-27',
+    '2027-01-01','2027-01-02','2027-01-03',
+    '2027-01-09','2027-01-10'
+  ];
+  foodExtra.forEach(d=>add(d,'伙食費',ntdToCAD(-300),'假日','food'));
+
+  items.sort((a,b)=>a.date.localeCompare(b.date));
+  return {items, nextId:id, actualExpenses:[]};
+}
+
+// ── 儲存/載入 ────────────────────────────────────────────────
+function load(){
+  const raw=localStorage.getItem(STORAGE_KEY);
+  if(raw) return JSON.parse(raw);
+  const d=buildDefaultData();
+  save(d);
+  return d;
+}
+function save(data){ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); }
+
+let DB=load();
+
+// ── 計算餘額到某日 ──────────────────────────────────────────
+function balanceUpTo(date, includeActual=true){
+  let bal=0;
+  DB.items.forEach(it=>{ if(it.date<=date) bal+=it.amtCAD; });
+  if(includeActual){
+    DB.actualExpenses.forEach(ae=>{ if(ae.date<=date) bal+=ae.amtCAD; });
+  }
+  return bal;
+}
+
+function itemsOnDate(date){
+  return DB.items.filter(it=>it.date===date);
+}
+
+// ── 面板切換 ────────────────────────────────────────────────
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  event.target.classList.add('active');
+  if(name==='today') renderToday();
+  if(name==='overview') renderOverview();
+  if(name==='data') renderDataInfo();
+}
+
+// ── 今日面板 ────────────────────────────────────────────────
+function renderToday(){
+  const t=today();
+  document.getElementById('today-date').textContent=t;
+
+  const bal=balanceUpTo(t);
+  document.getElementById('bal-cad').textContent=fmtCAD(bal);
+  document.getElementById('bal-ntd').textContent=fmtNTD(cadToNTD(bal));
+
+  const daysLeft=Math.max(1,daysBetween(t,END_DATE));
+  const daily=bal/daysLeft;
+  document.getElementById('daily-budget').textContent=fmtBoth(daily);
+  document.getElementById('days-left').textContent=`距離 ${END_DATE} 還有 ${daysLeft} 天`;
+
+  const todayItems=itemsOnDate(t);
+  const el=document.getElementById('today-items');
+  if(todayItems.length===0){
+    el.innerHTML='<div style="color:#64748b;font-size:.85rem">今天沒有預定收支</div>';
+  } else {
+    el.innerHTML=todayItems.map(it=>`
+      <div class="row">
+        <div><div class="row-name">${it.name}</div>${it.note?`<div class="row-note">${it.note}</div>`:''}
+        </div>
+        <div>
+          <div class="${it.amtCAD>=0?'amt-pos':'amt-neg'}">${fmtCAD(it.amtCAD)}</div>
+          <div class="amt-sub">${fmtNTD(cadToNTD(it.amtCAD))}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  renderActualList();
+}
+
+function renderActualList(){
+  const t=today();
+  const todayActual=(DB.actualExpenses||[]).filter(ae=>ae.date===t);
+  const el=document.getElementById('today-actual-list');
+  if(todayActual.length===0){el.innerHTML='';return;}
+  el.innerHTML='<div class="card-title" style="margin-top:8px">今日已記錄支出</div>'+
+    todayActual.map((ae,i)=>`
+    <div class="row">
+      <div><div class="row-name">${ae.name}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="amt-neg">${fmtCAD(ae.amtCAD)}</div>
+        <button class="btn-sm btn-red" onclick="removeActual(${i})">刪</button>
+      </div>
+    </div>`).join('');
+}
+
+function addActualExpense(){
+  const amt=parseFloat(document.getElementById('actual-amount').value);
+  if(!amt||isNaN(amt)){alert('請輸入金額');return;}
+  const cur=document.getElementById('actual-currency').value;
+  const desc=document.getElementById('actual-desc').value||'實際支出';
+  const amtCAD=cur==='NTD'?ntdToCAD(-Math.abs(amt)):-Math.abs(amt);
+  if(!DB.actualExpenses) DB.actualExpenses=[];
+  DB.actualExpenses.push({date:today(),name:desc,amtCAD});
+  save(DB);
+  document.getElementById('actual-amount').value='';
+  document.getElementById('actual-desc').value='';
+  renderToday();
+}
+
+function removeActual(idx){
+  const t=today();
+  const todayActual=DB.actualExpenses.filter(ae=>ae.date===t);
+  const toRemove=todayActual[idx];
+  const globalIdx=DB.actualExpenses.indexOf(toRemove);
+  if(globalIdx>-1){ DB.actualExpenses.splice(globalIdx,1); save(DB); }
+  renderToday();
+}
+
+// ── 日曆查詢 ────────────────────────────────────────────────
+function queryDate(){
+  const d=document.getElementById('cal-date').value;
+  if(!d){alert('請選擇日期');return;}
+  const items=itemsOnDate(d);
+  const balBefore=balanceUpTo(addDays(d,-1));
+  const dayTotal=items.reduce((s,it)=>s+it.amtCAD,0);
+  const balAfter=balBefore+dayTotal;
+
+  let html=`<div class="month-header">${d}</div>`;
+  if(items.length===0){
+    html+='<div style="color:#64748b;font-size:.85rem;padding:8px 0">此日無預定收支</div>';
+  } else {
+    html+=items.map(it=>`
+      <div class="row">
+        <div><div class="row-name">${it.name}</div>${it.note?`<div class="row-note">${it.note}</div>`:''}</div>
+        <div>
+          <div class="${it.amtCAD>=0?'amt-pos':'amt-neg'}">${fmtCAD(it.amtCAD)}</div>
+          <div class="amt-sub">${fmtNTD(cadToNTD(it.amtCAD))}</div>
+        </div>
+      </div>`).join('');
+  }
+  html+=`<div class="divider"></div>
+    <div class="row"><span style="font-size:.85rem;color:#94a3b8">當日結束後餘額</span>
+    <div>
+      <div class="${balAfter>=0?'amt-pos':'amt-neg'}">${fmtCAD(balAfter)}</div>
+      <div class="amt-sub">${fmtNTD(cadToNTD(balAfter))}</div>
+    </div></div>`;
+  document.getElementById('cal-result').innerHTML=html;
+}
+
+// ── 新增/編輯 ────────────────────────────────────────────────
+function addItem(){
+  const date=document.getElementById('new-date').value;
+  const name=document.getElementById('new-name').value.trim();
+  const amt=parseFloat(document.getElementById('new-amount').value);
+  const cur=document.getElementById('new-currency').value;
+  const note=document.getElementById('new-note').value.trim();
+  if(!date||!name||isNaN(amt)){alert('請填寫日期、名稱和金額');return;}
+  const amtCAD=cur==='NTD'?ntdToCAD(amt):amt;
+  DB.items.push({id:DB.nextId++,date,name,amtCAD:+amtCAD.toFixed(4),note});
+  DB.items.sort((a,b)=>a.date.localeCompare(b.date));
+  save(DB);
+  document.getElementById('new-name').value='';
+  document.getElementById('new-amount').value='';
+  document.getElementById('new-note').value='';
+  alert('已新增！');
+}
+
+function loadEditDate(){
+  const d=document.getElementById('edit-search-date').value;
+  if(!d){alert('請選擇日期');return;}
+  const items=DB.items.filter(it=>it.date===d);
+  const el=document.getElementById('edit-items');
+  if(items.length===0){el.innerHTML='<div style="color:#64748b;font-size:.85rem;padding:8px 0">此日無項目</div>';return;}
+  el.innerHTML=items.map(it=>`
+    <div class="item-row" id="item-row-${it.id}">
+      <div style="flex:1">
+        <div class="row-name">${it.name} <span class="${it.amtCAD>=0?'amt-pos':'amt-neg'}" style="font-size:.85rem">${fmtCAD(it.amtCAD)}</span></div>
+        ${it.note?`<div class="row-note">${it.note}</div>`:''}
+      </div>
+      <div class="item-actions">
+        <button class="btn-sm btn-blue" onclick="editItem(${it.id})">編輯</button>
+        <button class="btn-sm btn-red" onclick="deleteItem(${it.id})">刪除</button>
+      </div>
+    </div>
+    <div id="edit-form-${it.id}" style="display:none" class="edit-form">
+      <div class="grid2">
+        <div><label>名稱</label><input id="ef-name-${it.id}" value="${it.name}"></div>
+        <div><label>備註</label><input id="ef-note-${it.id}" value="${it.note||''}"></div>
+      </div>
+      <div class="grid2">
+        <div><label>金額(CAD)</label><input type="number" id="ef-amt-${it.id}" value="${it.amtCAD}" step="0.0001"></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-green btn-sm" onclick="saveItem(${it.id})">儲存</button>
+      <button class="btn btn-gray btn-sm" onclick="cancelEdit(${it.id})">取消</button></div>
+    </div>`).join('');
+}
+
+function editItem(id){
+  document.getElementById('edit-form-'+id).style.display='block';
+}
+function cancelEdit(id){
+  document.getElementById('edit-form-'+id).style.display='none';
+}
+function saveItem(id){
+  const it=DB.items.find(x=>x.id===id);
+  if(!it) return;
+  it.name=document.getElementById('ef-name-'+id).value;
+  it.note=document.getElementById('ef-note-'+id).value;
+  it.amtCAD=+parseFloat(document.getElementById('ef-amt-'+id).value).toFixed(4);
+  save(DB);
+  loadEditDate();
+  alert('已儲存！');
+}
+function deleteItem(id){
+  if(!confirm('確定要刪除此項目？')) return;
+  DB.items=DB.items.filter(x=>x.id!==id);
+  save(DB);
+  loadEditDate();
+}
+
+// ── 總覽 ────────────────────────────────────────────────────
+function renderOverview(){
+  const t=today();
+  const el=document.getElementById('overview-content');
+
+  // 取所有日期（有事件的）
+  const allDates=[...new Set(DB.items.filter(it=>it.date>=t&&it.date<=END_DATE).map(it=>it.date))].sort();
+  if(allDates.length===0){el.innerHTML='<div style="color:#64748b">無資料</div>';return;}
+
+  let html='';
+  let lastMonth='';
+  let monthIncome=0,monthExpense=0;
+  let monthItems=[];
+
+  function flushMonth(){
+    if(!lastMonth) return;
+    const endDate=lastMonth.slice(0,7)+'-'+new Date(lastMonth.slice(0,7)+'-01T00:00:00');
+    // 月底餘額
+    const lastDay=allDates.filter(d=>d.startsWith(lastMonth.slice(0,7))).pop()||lastMonth;
+    const mBal=balanceUpTo(lastDay);
+    html+=`<div class="month-summary">
+      <span class="tag tag-income">收入 ${fmtCAD(monthIncome)}</span>
+      <span class="tag tag-expense">支出 ${fmtCAD(monthExpense)}</span>
+      <span style="color:#94a3b8;font-size:.82rem">月底餘額 ${fmtBoth(mBal)}</span>
+    </div>`;
+    monthIncome=0;monthExpense=0;
+  }
+
+  allDates.forEach(date=>{
+    const m=date.slice(0,7);
+    if(m!==lastMonth){
+      flushMonth();
+      lastMonth=m;
+      html+=`<div class="month-header">${m}</div>`;
+    }
+    const items=itemsOnDate(date);
+    const dayBal=balanceUpTo(date);
+    const dayTotal=items.reduce((s,it)=>s+it.amtCAD,0);
+    items.forEach(it=>{ it.amtCAD>0?monthIncome+=it.amtCAD:monthExpense+=it.amtCAD; });
+    html+=`<div class="timeline-item">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="timeline-date">${date}${date===t?'<span class="badge badge-today">今天</span>':''}</div>
+        <div class="${dayBal>=0?'amt-pos':'amt-neg'}" style="font-size:.82rem">${fmtBoth(dayBal)}</div>
+      </div>
+      ${items.map(it=>`<div class="row" style="padding:3px 0">
+        <div style="font-size:.82rem">${it.name}${it.note?` <span class="row-note">(${it.note})</span>`:''}</div>
+        <div class="${it.amtCAD>=0?'amt-pos':'amt-neg'}" style="font-size:.82rem">${fmtCAD(it.amtCAD)}</div>
+      </div>`).join('')}
+    </div>`;
+  });
+  flushMonth();
+  el.innerHTML=html;
+}
+
+// ── 資料管理 ────────────────────────────────────────────────
+function renderDataInfo(){
+  document.getElementById('data-count').textContent=
+    `共 ${DB.items.length} 筆預定項目 / ${(DB.actualExpenses||[]).length} 筆實際支出`;
+}
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`cashflow_${today()}.json`;a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(e){
+  const f=e.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.items||!Array.isArray(data.items)) throw new Error('格式錯誤');
+      DB=data;save(DB);alert('匯入成功！');renderDataInfo();
+    } catch(err){alert('匯入失敗：'+err.message);}
+  };
+  reader.readAsText(f);
+  e.target.value='';
+}
+
+function resetData(){
+  if(!confirm('確定要重置為預設資料？所有自訂項目和實際支出都將清除。')) return;
+  DB=buildDefaultData();save(DB);
+  renderToday();alert('已重置！');
+}
+
+// ── 初始化 ──────────────────────────────────────────────────
+document.getElementById('cal-date').value=today();
+document.getElementById('edit-search-date').value=today();
+document.getElementById('new-date').value=today();
+renderToday();
+</script>
+</body>
+</html>
